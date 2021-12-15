@@ -1,6 +1,5 @@
 package com.onelinegaming.posedetectiondemo
 
-import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.onelinegaming.squidrunner.addTo
@@ -14,8 +13,6 @@ import java.util.concurrent.TimeUnit
 class GameViewModel : ViewModel() {
 
     val disposables = CompositeDisposable()
-
-    val canRun: MutableLiveData<Boolean> = MutableLiveData(true)
     val time: MutableLiveData<Int> = MutableLiveData(0)
     val gameStartLeft: MutableLiveData<Int> = MutableLiveData(0)
     val updateFrame: SingleLiveEvent<Any> = SingleLiveEvent()
@@ -34,16 +31,6 @@ class GameViewModel : ViewModel() {
     }
 
     private fun startGame() {
-        canRun.value = true
-        Observable.timer(5, TimeUnit.SECONDS)
-            .subscribeOn(Schedulers.newThread())
-            .repeat()
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe {
-                canRun.value = canRun.value?.not()
-                Log.w("Squid", "timer")
-            }.addTo(disposables)
-
         Observable.interval(1, TimeUnit.MILLISECONDS)
             .subscribeOn(Schedulers.newThread())
             .repeat()
