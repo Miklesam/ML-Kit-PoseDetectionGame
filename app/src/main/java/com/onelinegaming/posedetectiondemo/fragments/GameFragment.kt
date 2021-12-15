@@ -4,6 +4,7 @@ import android.graphics.Point
 import android.os.Bundle
 import android.util.Size
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
@@ -11,11 +12,15 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.pose.Pose
 import com.google.mlkit.vision.pose.PoseDetection
 import com.google.mlkit.vision.pose.PoseDetector
+import com.google.mlkit.vision.pose.PoseLandmark
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
+import com.onelinegaming.posedetectiondemo.GameViewModel
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -32,7 +37,11 @@ class GameFragment : Fragment(R.layout.fragment_game) {
     private lateinit var cameraExecutor: ExecutorService
     private var cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
     lateinit var lastResult: Pose
-    private var plaing = false
+    private var playing = false
+    lateinit var racetime : String
+    protected var animateCount = 0
+    protected var imCount = 0
+    val gameViewModel: GameViewModel by viewModels()
 
     private var cnt = 0
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -44,7 +53,111 @@ class GameFragment : Fragment(R.layout.fragment_game) {
         width = size.x
         height = size.y
         cameraExecutor = Executors.newSingleThreadExecutor()
+
         startCamera()
+
+        gameViewModel.gameStartLeft.observe(viewLifecycleOwner) {
+            if (it == 4) {
+                playing = true
+                game_start.visibility = View.GONE
+            } else if (it in 1..3) {
+                animateCounText(4 - it)
+            }
+        }
+
+        gameViewModel.time.observe(viewLifecycleOwner) {
+            val secs = it/1000
+            val millis = it%1000
+            val time = "$secs:$millis"
+            racetime = time
+            time_counter.text = time
+        }
+        gameViewModel.updateFrame.observe(viewLifecycleOwner) {
+            if (playing) updateRunningMan()
+        }
+    }
+
+    private fun animateCounText(value: Int) {
+        game_start.text = value.toString()
+        game_start.apply {
+            this.visibility = View.VISIBLE
+            alpha = 0f
+            animate().alpha(1f).setDuration(500L).setInterpolator(DecelerateInterpolator()).start()
+        }
+    }
+
+    private fun updateRunningMan() {
+        increaseRunCount()
+        when (imCount) {
+            0 -> {
+                player_view.setImageResource(R.drawable.first_scaled)
+            }
+            1 -> {
+                player_view.setImageResource(R.drawable.second_scaled)
+            }
+            2 -> {
+                player_view.setImageResource(R.drawable.third_scaled)
+            }
+            3 -> {
+                player_view.setImageResource(R.drawable.forth_scaled)
+            }
+            4 -> {
+                player_view.setImageResource(R.drawable.fifth_scaled)
+            }
+            5 -> {
+                player_view.setImageResource(R.drawable.sixth_scaled)
+            }
+            6 -> {
+                player_view.setImageResource(R.drawable.seventh_scaled)
+            }
+            7 -> {
+                player_view.setImageResource(R.drawable.eight_scaled)
+            }
+        }
+    }
+
+    protected fun increaseRunCount() {
+        if (animateCount < ANIMATE_COUNT) {
+            animateCount++
+        } else {
+            animateCount = 0
+        }
+        if (animateCount == ANIMATE_COUNT) {
+            if (imCount < 3) {
+                imCount++
+            } else {
+                imCount = 0
+            }
+        }
+    }
+
+    fun checkDebounce(previous: Pose, current: Pose) {
+        checkForPoseLandMark(PoseLandmark.LEFT_KNEE, previous, current)
+        checkForPoseLandMark(PoseLandmark.RIGHT_KNEE, previous, current)
+    }
+
+    private fun checkForPoseLandMark(
+        posePoint: Int,
+        previous: Pose,
+        current: Pose
+    ) {
+        val previousY =
+            previous.getPoseLandmark(posePoint)?.position?.y ?: 0f
+        val currentY =
+            current.getPoseLandmark(posePoint)?.position?.y ?: 0f
+
+        val diffY = currentY - previousY
+        if (diffY > ALLOWED_DEBOUNCE) {
+            player_view?.let {
+                if (player_view.x + player_view.width / 2 > finish_line.x){
+                    playing = false
+                    val bundle = Bundle()
+                    bundle.putString(RESULT,racetime)
+                    findNavController().navigate(R.id.action_gameFragment_to_resultsFragment,bundle)
+                }
+                it.x += SPEED
+            }
+        }
     }
 
     private fun startCamera() {
@@ -130,8 +243,8 @@ class GameFragment : Fragment(R.layout.fragment_game) {
                         .addOnSuccessListener { results ->
                             graphicOverlay.clear()
                             //check(results)
-                            if (this@GameFragment::lastResult.isInitialized && plaing) {
-                                //checkDebounce(lastResult, results)
+                            if (this@GameFragment::lastResult.isInitialized && playing) {
+                                checkDebounce(lastResult, results)
                             }
                             lastResult = results
                             graphicOverlay.add(
@@ -157,7 +270,15 @@ class GameFragment : Fragment(R.layout.fragment_game) {
 
     override fun onDestroy() {
         cameraExecutor.shutdown()
+        gameViewModel.disposables.dispose()
         super.onDestroy()
+    }
+
+    companion object {
+        val ANIMATE_COUNT = 4
+        val ALLOWED_DEBOUNCE = 4f
+        val SPEED = 4f
+        val RESULT = "result"
     }
 
 }
