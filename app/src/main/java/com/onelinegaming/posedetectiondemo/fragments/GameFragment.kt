@@ -34,7 +34,6 @@ class GameFragment : Fragment(R.layout.fragment_game) {
     lateinit var lastResult: Pose
     private var plaing = false
 
-    private var cnt = 0
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val windowManager = requireActivity().windowManager
@@ -124,32 +123,27 @@ class GameFragment : Fragment(R.layout.fragment_game) {
                 val image =
                     InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 // Pass image to an ML Kit Vision API
-                cnt += 1
-                if (true) {
-                    poseDetector.process(image)
-                        .addOnSuccessListener { results ->
-                            graphicOverlay.clear()
-                            //check(results)
-                            if (this@GameFragment::lastResult.isInitialized && plaing) {
-                                //checkDebounce(lastResult, results)
-                            }
-                            lastResult = results
-                            graphicOverlay.add(
-                                PoseGraphic(
-                                    graphicOverlay,
-                                    results
-                                )
-                            )
-                        }
-                        .addOnFailureListener { e ->
-                        }
-                        .addOnCompleteListener {
-                            imageProxy.close()
-                        }
-                } else {
-                    imageProxy.close()
-                }
 
+                poseDetector.process(image)
+                    .addOnSuccessListener { results ->
+                        graphicOverlay.clear()
+                        //check(results)
+                        if (this@GameFragment::lastResult.isInitialized && plaing) {
+                            //checkDebounce(lastResult, results)
+                        }
+                        lastResult = results
+                        graphicOverlay.add(
+                            PoseGraphic(
+                                graphicOverlay,
+                                results
+                            )
+                        )
+                    }
+                    .addOnFailureListener { e ->
+                    }
+                    .addOnCompleteListener {
+                        imageProxy.close()
+                    }
 
             }
         }
