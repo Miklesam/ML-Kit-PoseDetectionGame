@@ -38,12 +38,11 @@ class GameFragment : Fragment(R.layout.fragment_game) {
     private var cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
     lateinit var lastResult: Pose
     private var playing = false
-    lateinit var racetime : String
+    lateinit var racetime: String
     protected var animateCount = 0
     protected var imCount = 0
     val gameViewModel: GameViewModel by viewModels()
 
-    private var cnt = 0
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val windowManager = requireActivity().windowManager
@@ -66,8 +65,8 @@ class GameFragment : Fragment(R.layout.fragment_game) {
         }
 
         gameViewModel.time.observe(viewLifecycleOwner) {
-            val secs = it/1000
-            val millis = it%1000
+            val secs = it / 1000
+            val millis = it % 1000
             val time = "$secs:$millis"
             racetime = time
             time_counter.text = time
@@ -149,11 +148,16 @@ class GameFragment : Fragment(R.layout.fragment_game) {
         val diffY = currentY - previousY
         if (diffY > ALLOWED_DEBOUNCE) {
             player_view?.let {
-                if (player_view.x + player_view.width / 2 > finish_line.x){
+                if (player_view.x + player_view.width / 2 > finish_line.x) {
                     playing = false
                     val bundle = Bundle()
-                    bundle.putString(RESULT,racetime)
-                    findNavController().navigate(R.id.action_gameFragment_to_resultsFragment,bundle)
+                    bundle.putString(RESULT, racetime)
+                    if (findNavController().currentDestination?.id == R.id.gameFragment) {
+                        findNavController().navigate(
+                            R.id.action_gameFragment_to_resultsFragment,
+                            bundle
+                        )
+                    }
                 }
                 it.x += SPEED
             }
@@ -237,31 +241,26 @@ class GameFragment : Fragment(R.layout.fragment_game) {
                 val image =
                     InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 // Pass image to an ML Kit Vision API
-                cnt += 1
-                if (true) {
-                    poseDetector.process(image)
-                        .addOnSuccessListener { results ->
-                            graphicOverlay.clear()
-                            //check(results)
-                            if (this@GameFragment::lastResult.isInitialized && playing) {
-                                checkDebounce(lastResult, results)
-                            }
-                            lastResult = results
-                            graphicOverlay.add(
-                                PoseGraphic(
-                                    graphicOverlay,
-                                    results
-                                )
+                poseDetector.process(image)
+                    .addOnSuccessListener { results ->
+                        graphicOverlay.clear()
+                        //check(results)
+                        if (this@GameFragment::lastResult.isInitialized && playing) {
+                            checkDebounce(lastResult, results)
+                        }
+                        lastResult = results
+                        graphicOverlay.add(
+                            PoseGraphic(
+                                graphicOverlay,
+                                results
                             )
-                        }
-                        .addOnFailureListener { e ->
-                        }
-                        .addOnCompleteListener {
-                            imageProxy.close()
-                        }
-                } else {
-                    imageProxy.close()
-                }
+                        )
+                    }
+                    .addOnFailureListener { e ->
+                    }
+                    .addOnCompleteListener {
+                        imageProxy.close()
+                    }
 
 
             }
